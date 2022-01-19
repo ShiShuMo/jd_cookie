@@ -9,14 +9,18 @@ import (
 	"github.com/cdle/sillyGirl/develop/qinglong"
 )
 
-func init() {
+func initEnv() {
 	core.AddCommand("jd", []core.Function{
 		{
 			Rules: []string{`find ?`},
 			Admin: true,
 			Handle: func(s core.Sender) interface{} {
 				a := s.Get()
-				envs, err := qinglong.GetEnvs("JD_COOKIE")
+				err, qls := qinglong.QinglongSC(s)
+				if err != nil {
+					return err
+				}
+				envs, err := qinglong.GetEnvs(qls[0], "JD_COOKIE")
 				if err != nil {
 					return err
 				}
@@ -73,7 +77,12 @@ func init() {
 			Handle: func(s core.Sender) interface{} {
 				ac1 := s.Get(0)
 				ac2 := s.Get(1)
-				envs, err := qinglong.GetEnvs("JD_COOKIE")
+
+				err, qls := qinglong.QinglongSC(s)
+				if err != nil {
+					return err
+				}
+				envs, err := qinglong.GetEnvs(qls[0], "JD_COOKIE")
 				if err != nil {
 					return err
 				}
@@ -90,20 +99,28 @@ func init() {
 					return "找不到对应的变量，无法交换顺序。"
 				}
 				toe[0].ID, toe[1].ID = toe[1].ID, toe[0].ID
-				if err := qinglong.Req(qinglong.PUT, qinglong.ENVS, toe[0]); err != nil {
+				toe[0].Timestamp = ""
+				toe[1].Timestamp = ""
+				toe[0].Created = 0
+				toe[1].Created = 0
+				if _, err := qinglong.Req(qls[0], qinglong.PUT, qinglong.ENVS, toe[0]); err != nil {
 					return err
 				}
-				if err := qinglong.Req(qinglong.PUT, qinglong.ENVS, toe[1]); err != nil {
+				if _, err := qinglong.Req(qls[0], qinglong.PUT, qinglong.ENVS, toe[1]); err != nil {
 					return err
 				}
-				return "交换成功"
+				return "交换成功。"
 			},
 		},
 		{
 			Rules: []string{`enable ?`},
 			Admin: true,
 			Handle: func(s core.Sender) interface{} {
-				if err := qinglong.Req(qinglong.PUT, qinglong.ENVS, "/enable", []byte(`["`+s.Get()+`"]`)); err != nil {
+				err, qls := qinglong.QinglongSC(s)
+				if err != nil {
+					return err
+				}
+				if _, err := qinglong.Req(qls[0], qinglong.PUT, qinglong.ENVS, "/enable", []byte(`["`+s.Get()+`"]`)); err != nil {
 					return err
 				}
 				return "操作成功"
@@ -113,7 +130,11 @@ func init() {
 			Rules: []string{`disable ?`},
 			Admin: true,
 			Handle: func(s core.Sender) interface{} {
-				if err := qinglong.Req(qinglong.PUT, qinglong.ENVS, "/disable", []byte(`["`+s.Get()+`"]`)); err != nil {
+				err, qls := qinglong.QinglongSC(s)
+				if err != nil {
+					return err
+				}
+				if _, err := qinglong.Req(qls[0], qinglong.PUT, qinglong.ENVS, "/disable", []byte(`["`+s.Get()+`"]`)); err != nil {
 					return err
 				}
 				return "操作成功"
@@ -123,15 +144,19 @@ func init() {
 			Rules: []string{`remark ? ?`},
 			Admin: true,
 			Handle: func(s core.Sender) interface{} {
-				env, err := qinglong.GetEnv(s.Get())
+				err, qls := qinglong.QinglongSC(s)
+				if err != nil {
+					return err
+				}
+				env, err := qinglong.GetEnv(qls[0], s.Get(0))
 				if err != nil {
 					return err
 				}
 				env.Remarks = s.Get(1)
-				if err := qinglong.Req(qinglong.PUT, qinglong.ENVS, *env); err != nil {
+				if err := qinglong.UdpEnv(qls[0], *env); err != nil {
 					return err
 				}
-				return "操作成功"
+				return "备注成功。"
 			},
 		},
 	})
